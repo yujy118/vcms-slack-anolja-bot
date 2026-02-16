@@ -1,6 +1,5 @@
 /**
  * Retool Workflow API 호출
- * 대상 추출 + 중복 제거 + 번호 정제 결과를 리턴
  */
 
 async function fetchTargets() {
@@ -13,26 +12,21 @@ async function fetchTargets() {
       'Content-Type': 'application/json',
       'X-Workflow-Api-Key': apiKey,
     },
-    body: JSON.stringify({
-      wait_for_result: true,
-    }),
+    body: JSON.stringify({}),
   });
 
-  if (!response.ok) {
-    throw new Error(`Retool Workflow \ud638\ucd9c \uc2e4\ud328: ${response.status}`);
-  }
-
   const raw = await response.json();
-
+  console.log('Retool status:', response.status);
   console.log('Retool \uc751\ub2f5:', JSON.stringify(raw).slice(0, 500));
 
+  if (!response.ok) {
+    throw new Error(`Retool Workflow \ud638\ucd9c \uc2e4\ud328: ${response.status} - ${JSON.stringify(raw).slice(0, 200)}`);
+  }
+
   let data = raw;
-
-  // \uc911\ucca9 data \uad6c\uc870 \ud480\uae30
   if (data.data) data = data.data;
   if (data.data) data = data.data;
 
-  // JSON string\uc774\uba74 \ud30c\uc2f1
   if (typeof data === 'string') {
     try {
       data = JSON.parse(data);
