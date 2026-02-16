@@ -8,7 +8,7 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
       type: 'header',
       text: {
         type: 'plain_text',
-        text: '🚨 야놀자 403 장애 감지',
+        text: '🚨 야놀자 403 연동 지연 발생',
         emoji: true,
       },
     },
@@ -17,11 +17,11 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
       fields: [
         {
           type: 'mrkdwn',
-          text: `*감지 시간:*\n${detectedAt}`,
+          text: `*발생 시간:*\n${detectedAt}`,
         },
         {
           type: 'mrkdwn',
-          text: `*에러 업장:*\n${shopCount}개 (임계치: ${threshold}개)`,
+          text: `*연동 지연 업장:*\n${shopCount}개 (임계치: ${threshold}개)`,
         },
       ],
     },
@@ -46,7 +46,7 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
         {
           type: 'button',
           text: { type: 'plain_text', text: '알림 무시', emoji: true },
-          style: 'default',
+          // style: 'default',
           action_id: 'dismiss_alert',
           value: incidentId,
         },
