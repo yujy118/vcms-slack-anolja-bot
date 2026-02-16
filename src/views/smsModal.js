@@ -75,7 +75,7 @@ function buildSmsModal({ incidentId, type }) {
         block_id: 'confirm_block',
         label: {
           type: 'plain_text',
-          text: '⚠️ 발송 책임 확인',
+          text: '⚠️ 발송 시 주의사항',
         },
         element: {
           type: 'checkboxes',
@@ -84,7 +84,7 @@ function buildSmsModal({ incidentId, type }) {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*본인은 해당 문구 발송에 따른 책임을 확인했습니다.*',
+                text: '*메시지 발송 전 반드시 내용을 다시 한 번 확인해 주세요. 발송 완료 후에는 수정 및 취소가 불가합니다. 오탈자, 수신자 정보, 링크 및 금액 등을 최종 점검하신 뒤 신중하게 발송해 주시기 바랍니다.*',
               },
               value: 'confirmed',
             },
