@@ -7,7 +7,7 @@ const templates = require('../templates');
 function buildSmsModal({ incidentId, type }) {
   const defaultTemplate = type === 'recovery' ? 'resolved' : 'urgent';
   const defaultText = templates[defaultTemplate];
-  const titleText = type === 'recovery' ? '해제 문자 발송' : '야놀자 403 문자 발송';
+  const titleText = type === 'recovery' ? '해제 문자 발송' : '야놀자 연동 지연 문자 발송';
 
   return {
     type: 'modal',
