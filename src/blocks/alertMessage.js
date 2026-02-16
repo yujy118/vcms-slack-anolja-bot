@@ -38,15 +38,15 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
       elements: [
         {
           type: 'button',
-          text: { type: 'plain_text', text: '📱 문자 발송하기', emoji: true },
-          style: 'primary',
+          text: { type: 'plain_text', text: '문자 발송', emoji: true },
+          style: 'warning',
           action_id: 'open_sms_modal',
           value: incidentId,
         },
         {
           type: 'button',
-          text: { type: 'plain_text', text: '❌ 무시', emoji: true },
-          style: 'danger',
+          text: { type: 'plain_text', text: '알림 무시', emoji: true },
+          style: 'primary',
           action_id: 'dismiss_alert',
           value: incidentId,
         },
