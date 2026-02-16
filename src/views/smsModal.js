@@ -70,7 +70,7 @@ function buildSmsModal({ incidentId, type }) {
         block_id: 'confirm_content_block',
         label: {
           type: 'plain_text',
-          text: '⚠️ 발송 시 주의사항',
+          text: '✅ 문자 내용 확인',
         },
         element: {
           type: 'checkboxes',
@@ -79,7 +79,7 @@ function buildSmsModal({ incidentId, type }) {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*메시지 발송 전 내용을 다시 한 번 확인했습니다.*',
+                text: '*문자 내용을 다시 한 번 확인했습니다.*',
               },
               value: 'confirmed_content',
             },
@@ -91,7 +91,7 @@ function buildSmsModal({ incidentId, type }) {
         block_id: 'confirm_irreversible_block',
         label: {
           type: 'plain_text',
-          text: '⚠️ 최종 확인',
+          text: '⚠️ 발송 시 주의사항 ',
         },
         element: {
           type: 'checkboxes',
