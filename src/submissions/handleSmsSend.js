@@ -10,14 +10,19 @@ function registerSmsSendHandler(app) {
     const { incidentId, type } = JSON.parse(view.private_metadata);
     const userId = body.user.id;
 
-    // === 1. 책임 체크박스 확인 ===
+    // === 1. 책임 체크박스 확인 (2개 모두 체크 필수) ===
     const confirmValues =
       view.state.values.confirm_block?.confirm_check?.selected_options || [];
-    if (!confirmValues.some((opt) => opt.value === 'confirmed')) {
+    const selectedValues = confirmValues.map((opt) => opt.value);
+    const allChecked =
+      selectedValues.includes('confirmed_content') &&
+      selectedValues.includes('confirmed_irreversible');
+
+    if (!allChecked) {
       return ack({
         response_action: 'errors',
         errors: {
-          confirm_block: '발송 책임 확인에 체크해주세요.',
+          confirm_block: '모든 항목에 체크해주세요.',
         },
       });
     }
@@ -77,7 +82,6 @@ function registerSmsSendHandler(app) {
           limit: 1,
         });
         const originalBlocks = originalMsg.messages?.[0]?.blocks || [];
-        // actions 블록 제거하고 발송중 컨텍스트 추가
         const updatedBlocks = originalBlocks
           .filter((b) => b.type !== 'actions')
           .concat([
@@ -125,7 +129,6 @@ function registerSmsSendHandler(app) {
           limit: 1,
         });
         const currentBlocks = originalMsg.messages?.[0]?.blocks || [];
-        // context(발송중) 제거하고 완료 컨텍스트로 교체
         const finalBlocks = currentBlocks
           .filter((b) => b.type !== 'context')
           .concat([
