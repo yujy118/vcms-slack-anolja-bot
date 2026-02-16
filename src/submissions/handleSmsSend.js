@@ -10,19 +10,25 @@ function registerSmsSendHandler(app) {
     const { incidentId, type } = JSON.parse(view.private_metadata);
     const userId = body.user.id;
 
-    // === 1. 책임 체크박스 확인 (2개 모두 체크 필수) ===
-    const confirmValues =
-      view.state.values.confirm_block?.confirm_check?.selected_options || [];
-    const selectedValues = confirmValues.map((opt) => opt.value);
-    const allChecked =
-      selectedValues.includes('confirmed_content') &&
-      selectedValues.includes('confirmed_irreversible');
+    // === 1. 책임 체크박스 확인 (2개 블록 각각 체크 확인) ===
+    const contentCheck =
+      view.state.values.confirm_content_block?.confirm_content_check?.selected_options || [];
+    const irreversibleCheck =
+      view.state.values.confirm_irreversible_block?.confirm_irreversible_check?.selected_options || [];
 
-    if (!allChecked) {
+    if (!contentCheck.some((opt) => opt.value === 'confirmed_content')) {
       return ack({
         response_action: 'errors',
         errors: {
-          confirm_block: '모든 항목에 체크해주세요.',
+          confirm_content_block: '문자 내용 확인에 체크해주세요.',
+        },
+      });
+    }
+    if (!irreversibleCheck.some((opt) => opt.value === 'confirmed_irreversible')) {
+      return ack({
+        response_action: 'errors',
+        errors: {
+          confirm_irreversible_block: '발송 주의사항에 체크해주세요.',
         },
       });
     }
