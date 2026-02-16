@@ -26,7 +26,35 @@ function getService() {
 async function sendBulk(phones, text) {
   const service = getService();
   const sender = process.env.SOLAPI_SENDER;
+  const testPhone = process.env.TEST_PHONE;
 
+  // 🚨 테스트 모드: TEST_PHONE 설정 시 모든 수신번호를 테스트 번호로 대체
+  if (testPhone) {
+    console.log(`⚠️  테스트 모드: 모든 SMS를 ${testPhone}으로 발송 (원래 ${phones.length}건)`);
+    // 테스트 모드에서는 1건만 발송
+    const messages = [{
+      to: testPhone.replace(/-/g, ''),
+      from: sender.replace(/-/g, ''),
+      text,
+    }];
+
+    try {
+      const result = await service.send(messages);
+      console.log('Solapi 테스트 발송 결과:', JSON.stringify(result).slice(0, 500));
+      return {
+        total: phones.length,
+        success: 1,
+        failure: 0,
+        failures: [],
+        testMode: true,
+        testPhone,
+      };
+    } catch (error) {
+      throw new Error(`Solapi 발송 실패: ${error.message}`);
+    }
+  }
+
+  // 🔴 실제 발송 모드
   const messages = phones.map((p) => ({
     to: p.number.replace(/-/g, ''),
     from: sender.replace(/-/g, ''),
@@ -36,14 +64,11 @@ async function sendBulk(phones, text) {
   try {
     const result = await service.send(messages);
 
-    // Solapi 응답 파싱
     const total = messages.length;
     const success = result.groupInfo?.count?.registeredSuccess || total;
     const failure = total - success;
 
-    // 실패 건 상세 (있다면)
     const failures = [];
-    // TODO: Solapi 응답에서 실패 건 상세 파싱 로직 추가
 
     return { total, success, failure, failures };
   } catch (error) {
