@@ -68,6 +68,14 @@ function registerSmsSendHandler(app) {
       // === 5. Retool에서 대상 추출 ===
       const targets = await retool.fetchTargets();
 
+      // 🚨 테스트 모드: 번호 목록도 강제 교체
+      const testPhone = process.env.TEST_PHONE;
+      if (testPhone) {
+        const originalCount = targets.phones.length;
+        targets.phones = [{ number: testPhone, name: '🧪 테스트' }];
+        console.log(`⚠️  테스트 모드: ${originalCount}개 번호 → ${testPhone} 1건으로 교체`);
+      }
+
       // === 6. Solapi SMS 발송 ===
       const result = await solapi.sendBulk(targets.phones, smsText);
 
