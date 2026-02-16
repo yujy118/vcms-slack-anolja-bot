@@ -20,7 +20,7 @@ Slack 채널 알림 (장애 현황 + 📱 문자 발송 버튼)
         ▼
 Slack 모달 (템플릿 선택 + 문구 수정 + 대상 미리보기 + 책임 확인 체크)
         │
-        │  PM 컨펌
+        │  PM 컨펌 (레이스 컨디션 체크 → 1인만 통과)
         ▼
 Solapi SMS 발송 → 버튼 비활성화 → 결과 회신 (실패 시 스레드 상세)
         │
@@ -59,8 +59,10 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
 
 - **장애 발생 문자 1회 + 해제 문자 1회** — 하나의 장애 이벤트에서 최대 2회 발송
 - **모든 문자 발송은 PM 컨펌 필수** — 모달에서 문구 확인 + 책임 체크박스
+- **중복 발송 원천 차단** — 동시에 여러 명이 모달을 열어도 1인만 발송 통과
 - **발송자 자동 기록** — 누가 발송을 승인했는지 결과 메시지에 명시
 - **버튼 1회용** — 발송 컨펌 즉시 버튼 비활성화, 재발송 불가
+- **무시 버튼도 로그** — 무시 클릭 시 누가 언제 무시했는지 채널에 박제
 - **해제 알림은 스레드** — 채널을 어지럽히지 않고, 원래 장애 알림에 이어서 표시
 - **해제 문자는 선택적** — PM이 필요하다고 판단할 때만 발송
 - **실패 건 상세 리포트** — 발송 실패 시 스레드로 상세 내역 제공
@@ -106,9 +108,10 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
    │           [ 발송 ]  [ 취소 ]              │
    └─────────────────────────────────────────┘
 4. PM이 문구 확인/수정 + 책임 체크 후 [발송] 클릭
-5. Solapi SMS 발송
-6. 결과 회신 + 버튼 비활성화
-7. 실패 건이 있으면 스레드로 상세 내역 전송
+5. 레이스 컨디션 체크 → 이미 발송 완료된 건이면 에러 메시지
+6. Solapi SMS 발송
+7. 결과 회신 + 버튼 비활성화
+8. 실패 건이 있으면 스레드로 상세 내역 전송
 ```
 
 ### 장애 해제 시
@@ -117,7 +120,20 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
 1. 봇이 원래 알림의 스레드에 해제 메시지 + [📱 해제 문자 발송] 버튼
 2. PM이 버튼 클릭
 3. 동일한 모달 (해제 템플릿 기본 선택)
-4. PM 컨펌 → 발송 → 버튼 비활성화
+4. PM 컨펌 → 레이스 컨디션 체크 → 발송 → 버튼 비활성화
+```
+
+### 무시 시
+
+```
+1. PM이 [❌ 무시] 버튼 클릭
+2. 메시지가 삭제되지 않고, 내용이 업데이트됨:
+
+   ❌ 야놀자 403 장애 알림 무시됨
+   처리자: @김철수PM
+   처리 시간: 2026-02-16 09:35:00
+
+3. 장애 상태는 유지 (재알림은 안 감)
 ```
 
 ---
@@ -166,16 +182,90 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
 
 ---
 
-## 보안 & 책임 추적
+## 🛡️ 운영 안정성 및 책임 추적
+
+### 중복 발송 방지 (Race Condition)
+
+PM 두 명이 동시에 모달을 열 수는 있지만, [발송] 버튼을 누르는 마지막 순간에는 **1인만 통과**.
+
+- 모달 생성 시 `private_metadata`에 `incident_id` (장애 고유 ID)를 심어서 전달
+- `view_submission` 핸들러에서 해당 ID의 상태를 원자적으로 체크
+- 상태가 이미 `COMPLETED`면 → 모달에 에러 메시지 표시 ("이미 다른 PM님이 발송을 완료했습니다")
+- 통과 시 → 상태를 즉시 `COMPLETED`로 변경 후 SMS 발송 진행
+
+```javascript
+// src/submissions/handleSmsSend.js 핵심 로직
+app.view('sms_modal_submit', async ({ ack, body, view, client }) => {
+  const incidentId = view.private_metadata;
+  const userId = body.user.id;
+
+  // 1. 상태 체크 (Atomic)
+  const currentState = await alertState.getState(incidentId);
+
+  if (currentState === 'COMPLETED') {
+    // 이미 발송됨 → 에러 표시
+    return ack({
+      response_action: 'errors',
+      errors: {
+        sms_text_input: '이미 다른 PM님이 발송을 완료했습니다. (확인 필요)'
+      }
+    });
+  }
+
+  // 2. 즉시 상태 변경 (중복 진입 방지)
+  await alertState.setState(incidentId, 'COMPLETED');
+  await ack();
+
+  // 3. SMS 발송 실행...
+});
+```
+
+### 무시 버튼 로그화
+
+[❌ 무시] 클릭 시 메시지를 **삭제하지 않고**, 누가 언제 무시했는지 채널에 **박제**.
+"알림을 못 봤다"가 아니라 **"누가 확인하고 무시했다"**를 명확히 기록.
+
+```javascript
+// src/actions/dismiss.js 핵심 로직
+app.action('dismiss_alert', async ({ ack, body, client }) => {
+  await ack();
+
+  const userId = body.user.id;
+  const channelId = body.channel.id;
+  const messageTs = body.message.ts;
+
+  // 메시지 삭제 대신 업데이트로 로그 남김
+  await client.chat.update({
+    channel: channelId,
+    ts: messageTs,
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `❌ *야놀자 403 장애 알림 무시됨*\n처리자: <@${userId}>\n처리 시간: ${new Date().toLocaleString()}`
+        }
+      }
+    ]
+  });
+});
+```
 
 ### 발송 책임 확인
-- 모달 하단에 **필수 체크박스**: `☑ 본인은 해당 문구 발송에 따른 책임을 확인했습니다.`
-- 체크하지 않으면 발송 버튼 비활성화
 
-### 발송자 자동 기록
-- Slack 인터랙션 페이로드에서 `user_id` 추출
-- 결과 메시지에 **"@이름 님이 발송을 승인함"** 명시
-- 심리적 장벽 + 로그 역할 → 실수 발송 방지
+- 모달 하단에 **필수 체크박스**: `☑ 본인은 해당 문구 발송에 따른 책임을 확인했습니다.`
+- 체크하지 않으면 발송 불가
+- Slack 인터랙션 페이로드에서 `user_id` 추출 → 결과 메시지에 **"@이름 님이 발송을 승인함"** 명시
+- 심리적 장벽 + 감사 로그 역할 → 실수 발송 방지
+
+### 모든 행동은 추적됨
+
+| 행동 | 기록 내용 |
+|------|----------|
+| 문자 발송 | 승인자, 선택 템플릿, 발송 시간, 성공/실패 건수 |
+| 해제 문자 발송 | 승인자, 선택 템플릿, 발송 시간 |
+| 알림 무시 | 처리자, 처리 시간 |
+| 해제 문자 발송 안함 | 처리자, 처리 시간 |
 
 ---
 
@@ -240,7 +330,15 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
   서울스테이 (010-3456-7xx): 수신 거부
 ```
 
-### 4. 장애 해제 알림 (스레드)
+### 4. 알림 무시됨 (메시지 업데이트)
+
+```
+❌ 야놀자 403 장애 알림 무시됨
+처리자: @김철수PM
+처리 시간: 2026-02-16 09:35:00
+```
+
+### 5. 장애 해제 알림 (스레드)
 
 ```
 ✅ 야놀자 403 장애 해제
@@ -272,7 +370,7 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
 │  Slack 모달      │  템플릿 드롭다운 + 문구 수정
 │                  │  대상 미리보기 + 책임 체크박스
 └────────┬─────────┘
-         │  컨펌 (체크박스 필수)
+         │  컨펌 (레이스 컨디션 체크 + 체크박스 필수)
          ▼
 ┌──────────────────┐
 │  Retool Workflow │  대상 추출 + 중복 제거 + 번호 정제
@@ -305,6 +403,7 @@ Slack 스레드 해제 알림 → 모달 → 해제 SMS → 버튼 비활성화
 | 봇 프레임워크 | **Slack Bolt (Node.js)** | Interactive Message, 모달, 버튼 콜백 |
 | 대상 추출 | **Retool Workflow** | DB 쿼리, 중복 제거, 번호 정규식 정제 |
 | 문자 발송 | **Solapi** (`solapi-node`) | SMS 일괄 발송 API |
+| 상태 관리 | **In-memory / Redis** | 장애 상태, 레이스 컨디션 방지, 쿨다운 |
 | 메시지 UI | **Slack Block Kit + Modal** | 알림, 템플릿 드롭다운, 체크박스, 결과 리포트 |
 
 ---
@@ -316,17 +415,17 @@ vcms-slack-anolja-bot/
 ├── src/
 │   ├── app.js                  # Slack Bolt 앱 엔트리포인트
 │   ├── monitor/
-│   │   ├── alertState.js       # 장애 상태 관리 (감지/해제/쿨다운)
+│   │   ├── alertState.js       # 장애 상태 관리 (감지/해제/쿨다운/레이스 컨디션)
 │   │   └── shopTracker.js      # 에러 업장 스냅샷 + 복구 추적
 │   ├── actions/
 │   │   ├── openSmsModal.js     # [문자 발송하기] → 모달 열기
 │   │   ├── openRecoveryModal.js # [해제 문자 발송] → 모달 열기
-│   │   ├── dismiss.js          # [무시] 버튼 핸들러
-│   │   └── skipRecovery.js     # [발송 안함] 버튼 핸들러
+│   │   ├── dismiss.js          # [무시] → 메시지 업데이트 (처리자 박제)
+│   │   └── skipRecovery.js     # [발송 안함] → 메시지 업데이트 (처리자 박제)
 │   ├── views/
 │   │   └── smsModal.js         # 모달 (템플릿 드롭다운 + 문구 + 체크박스)
 │   ├── submissions/
-│   │   └── handleSmsSend.js    # 모달 제출 → SMS 발송 + 버튼 비활성화
+│   │   └── handleSmsSend.js    # 모달 제출 → 레이스 컨디션 체크 → SMS 발송
 │   ├── services/
 │   │   ├── retool.js           # Retool Workflow API 호출
 │   │   ├── solapi.js           # Solapi SMS 발송 + 실패 상세 파싱
@@ -335,7 +434,8 @@ vcms-slack-anolja-bot/
 │       ├── alertMessage.js     # 장애 감지 알림 Block Kit
 │       ├── recoveryMessage.js  # 장애 해제 알림 Block Kit (스레드)
 │       ├── resultMessage.js    # 발송 결과 Block Kit (승인자 포함)
-│       └── failureDetail.js    # 발송 실패 상세 Block Kit (스레드)
+│       ├── failureDetail.js    # 발송 실패 상세 Block Kit (스레드)
+│       └── dismissedMessage.js # 알림 무시됨 Block Kit (처리자 박제)
 ├── templates/
 │   ├── urgent.txt              # [긴급] 장애 안내
 │   ├── delayed.txt             # [지연] 복구 지연
@@ -428,10 +528,12 @@ npm start
 - [ ] Retool Workflow (대상 추출 API)
 - [ ] Slack Bolt 앱 세팅 (Node.js)
 - [ ] 장애 상태 관리 (감지/해제/쿨다운)
+- [ ] 레이스 컨디션 방지 (incident_id 기반 중복 발송 차단)
 - [ ] 업장 스냅샷 기반 복구 추적
 - [ ] Slack 모달 (템플릿 드롭다운 + 문구 수정 + 책임 체크박스)
 - [ ] Solapi SMS 연동
 - [ ] 발송 결과 리포트 (승인자 명시 + 실패 상세 스레드)
+- [ ] 무시 버튼 로그화 (처리자 박제)
 - [ ] 버튼 비활성화 처리
 - [ ] 해제 알림 스레드 + 해제 모달
 - [ ] 에러 핸들링
