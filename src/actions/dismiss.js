@@ -1,3 +1,5 @@
+const { formatDateTime } = require('../utils/time');
+
 function registerDismissAction(app) {
   app.action('dismiss_alert', async ({ ack, body, client }) => {
     await ack();
@@ -6,28 +8,32 @@ function registerDismissAction(app) {
     const channelId = body.channel.id;
     const messageTs = body.message.ts;
 
-    // 원본 블록에서 actions(버튼) 제거하고 무시 정보 추가
-    const originalBlocks = body.message.blocks.filter(
+    // 1. 원본 메시지에서 버튼만 제거 (장애 정보 유지)
+    const updatedBlocks = body.message.blocks.filter(
       (block) => block.type !== 'actions'
     );
-
-    const updatedBlocks = [
-      ...originalBlocks,
-      { type: 'divider' },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `❌ *알림 무시됨*\n처리자: <@${userId}>\n처리 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`,
-        },
-      },
-    ];
 
     await client.chat.update({
       channel: channelId,
       ts: messageTs,
       blocks: updatedBlocks,
-      text: '야놀자 403 장애 알림 무시됨',
+      text: '야놀자 403 장애 알림 (무시됨)',
+    });
+
+    // 2. 스레드에 무시 로그 박제
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: messageTs,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `❌ *알림 무시됨*\n처리자: <@${userId}>\n처리일시: ${formatDateTime()}`,
+          },
+        },
+      ],
+      text: `알림 무시됨 - <@${userId}>`,
     });
   });
 }

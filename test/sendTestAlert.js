@@ -6,6 +6,7 @@ require('dotenv').config();
 const { WebClient } = require('@slack/web-api');
 const { buildAlertMessage } = require('../src/blocks/alertMessage');
 const alertState = require('../src/monitor/alertState');
+const { formatDateTime } = require('../src/utils/time');
 
 const client = new WebClient(process.env.SLACK_BOT_TOKEN);
 const channel = process.env.SLACK_ALERT_CHANNEL;
@@ -22,7 +23,7 @@ const incidentId = `test-${Date.now()}`;
     shopCount: 23,
     threshold: 20,
     shopNames: '홍길동호텔, 제주리조트, 서울스테이 ...외 20건',
-    detectedAt: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+    detectedAt: formatDateTime(),
   });
 
   const result = await client.chat.postMessage({

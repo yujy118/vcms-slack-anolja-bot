@@ -23,33 +23,41 @@ const AlertStatus = {
 
 /**
  * 장애 상태 조회
- * @param {string} incidentId - 장애 고유 ID
- * @returns {string|null}
+ * @param {string} incidentId
+ * @returns {{ status: string, completedBy: string|null } | null}
  */
 function getState(incidentId) {
   return state.get(incidentId) || null;
 }
 
 /**
- * 장애 상태 설정 (원자적 상태 변경)
+ * 장애 상태 설정
  * @param {string} incidentId
  * @param {string} status
+ * @param {{ userId?: string }} options
  */
-function setState(incidentId, status) {
-  state.set(incidentId, status);
+function setState(incidentId, status, options = {}) {
+  state.set(incidentId, {
+    status,
+    completedBy: options.userId || null,
+  });
 }
 
 /**
  * 장애 상태를 원자적으로 체크하고 변경 (레이스 컨디션 방지)
  * @param {string} incidentId
- * @param {string} expectedCurrent - 현재 상태가 이것일 때만
- * @param {string} newStatus - 이 상태로 변경
+ * @param {string} expectedCurrent
+ * @param {string} newStatus
+ * @param {{ userId?: string }} options
  * @returns {boolean} 성공 여부
  */
-function compareAndSet(incidentId, expectedCurrent, newStatus) {
+function compareAndSet(incidentId, expectedCurrent, newStatus, options = {}) {
   const current = state.get(incidentId);
-  if (current === expectedCurrent) {
-    state.set(incidentId, newStatus);
+  if (current && current.status === expectedCurrent) {
+    state.set(incidentId, {
+      status: newStatus,
+      completedBy: options.userId || null,
+    });
     return true;
   }
   return false;

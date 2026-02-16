@@ -26,14 +26,22 @@ function registerSmsSendHandler(app) {
     const canProceed = alertState.compareAndSet(
       stateKey,
       alertState.AlertStatus.ALERTING,
-      alertState.AlertStatus.COMPLETED
+      alertState.AlertStatus.COMPLETED,
+      { userId }
     );
 
     if (!canProceed) {
+      // 누가 완료했는지 확인
+      const currentState = alertState.getState(stateKey);
+      const completedBy = currentState?.completedBy;
+      const errorMsg = completedBy
+        ? `이미 <@${completedBy}> 님이 발송을 완료했습니다.`
+        : '이미 다른 사용자가 발송을 완료했습니다.';
+
       return ack({
         response_action: 'errors',
         errors: {
-          sms_text_block: '이미 다른 PM님이 발송을 완료했습니다. (확인 필요)',
+          sms_text_block: errorMsg,
         },
       });
     }
