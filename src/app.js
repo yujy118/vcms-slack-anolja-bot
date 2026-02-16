@@ -14,11 +14,13 @@ const { registerSmsAction } = require('./actions/openSmsModal');
 const { registerRecoveryAction } = require('./actions/openRecoveryModal');
 const { registerDismissAction } = require('./actions/dismiss');
 const { registerSkipRecoveryAction } = require('./actions/skipRecovery');
+const { registerTemplateChangeAction } = require('./actions/templateChange');
 
 registerSmsAction(app);
 registerRecoveryAction(app);
 registerDismissAction(app);
 registerSkipRecoveryAction(app);
+registerTemplateChangeAction(app);
 
 // === View Submissions (모달 제출) ===
 const { registerSmsSendHandler } = require('./submissions/handleSmsSend');

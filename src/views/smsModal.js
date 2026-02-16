@@ -26,15 +26,15 @@ function buildSmsModal({ incidentId, type }) {
       text: '취소',
     },
     blocks: [
-      // 템플릿 드롭다운
+      // 템플릿 드롭다운 (dispatch_action으로 변경 감지)
       {
-        type: 'input',
+        type: 'section',
         block_id: 'template_block',
-        label: {
-          type: 'plain_text',
-          text: '📝 템플릿 선택',
+        text: {
+          type: 'mrkdwn',
+          text: '*📝 템플릿 선택*',
         },
-        element: {
+        accessory: {
           type: 'static_select',
           action_id: 'template_select',
           initial_option: {
