@@ -31,7 +31,6 @@ function registerSmsSendHandler(app) {
     );
 
     if (!canProceed) {
-      // 누가 완료했는지 확인
       const currentState = alertState.getState(stateKey);
       const completedBy = currentState?.completedBy;
       const errorMsg = completedBy
@@ -51,7 +50,7 @@ function registerSmsSendHandler(app) {
 
     // === 4. 입력값 추출 ===
     const smsText =
-      view.state.values.sms_text_block?.sms_text_input?.value || '';
+      (view.state.values.sms_text_block?.sms_text_input?.value || '').trim();
     const selectedTemplate =
       view.state.values.template_block?.template_select?.selected_option?.text?.text || '직접 입력';
 
@@ -67,7 +66,6 @@ function registerSmsSendHandler(app) {
       const channelId = process.env.SLACK_ALERT_CHANNEL;
       const messageTs = meta.messageTs;
 
-      // 원래 메시지 업데이트 (버튼 비활성화 + 결과)
       const resultBlocks = buildResultMessage({
         total: result.total,
         success: result.success,
