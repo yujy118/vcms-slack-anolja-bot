@@ -3,6 +3,8 @@ const solapi = require('../services/solapi');
 const retool = require('../services/retool');
 const { buildResultMessage } = require('../blocks/resultMessage');
 const { buildFailureDetail } = require('../blocks/failureDetail');
+const { buildPhoneListMessage } = require('../blocks/phoneListMessage');
+const { uploadResultCsv } = require('../services/resultCsv');
 const { formatDateTime } = require('../utils/time');
 
 function registerSmsSendHandler(app) {
@@ -115,6 +117,9 @@ function registerSmsSendHandler(app) {
       // === 6. Retool에서 대상 추출 ===
       const targets = await retool.fetchTargets();
 
+      // 원본 번호 목록 보관 (리스트 출력용)
+      const originalPhones = [...targets.phones];
+
       // 🚨 테스트 모드: 번호 목록도 강제 교체
       const testPhone = process.env.TEST_PHONE;
       if (testPhone) {
@@ -176,7 +181,28 @@ function registerSmsSendHandler(app) {
         text: `SMS 발송 완료 (성공: ${result.success}건 / 실패: ${result.failure}건)`,
       });
 
-      // === 10. 실패 건이 있으면 스레드로 상세 내역 ===
+      // === 10. 발송 대상 리스트를 스레드로 회신 ===
+      const phoneListBlocks = buildPhoneListMessage(
+        originalPhones,
+        !!testPhone,
+        testPhone || ''
+      );
+
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: messageTs,
+        blocks: phoneListBlocks,
+        text: `발송 대상 목록: ${originalPhones.length}건`,
+      });
+
+      // === 11. 발송 결과 CSV 파일 스레드에 첨부 ===
+      try {
+        await uploadResultCsv(client, channelId, messageTs, originalPhones, result, smsText);
+      } catch (e) {
+        console.warn('CSV 업로드 실패 (무시):', e.message);
+      }
+
+      // === 12. 실패 건이 있으면 스레드로 상세 내역 ===
       if (result.failures && result.failures.length > 0) {
         const failureBlocks = buildFailureDetail(result.failures);
         await client.chat.postMessage({
