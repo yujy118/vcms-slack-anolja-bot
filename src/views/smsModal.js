@@ -5,7 +5,6 @@ const templates = require('../templates');
  * @param {{ incidentId: string, type: 'alert' | 'recovery' }} options
  */
 function buildSmsModal({ incidentId, type }) {
-  // 해제 시에는 해제 템플릿, 장애 시에는 긴급 템플릿
   const defaultTemplate = type === 'recovery' ? 'resolved' : 'urgent';
   const defaultText = templates[defaultTemplate];
   const titleText = type === 'recovery' ? '해제 문자 발송' : '야놀자 403 문자 발송';
@@ -27,7 +26,6 @@ function buildSmsModal({ incidentId, type }) {
       text: '취소',
     },
     blocks: [
-      // 템플릿 드롭다운
       {
         type: 'section',
         block_id: 'template_block',
@@ -48,7 +46,6 @@ function buildSmsModal({ incidentId, type }) {
           })),
         },
       },
-      // 문구 입력
       {
         type: 'input',
         block_id: 'sms_text_block',
@@ -67,19 +64,17 @@ function buildSmsModal({ incidentId, type }) {
           },
         },
       },
-      // 구분선
       { type: 'divider' },
-      // 책임 확인 체크박스
       {
         type: 'input',
-        block_id: 'confirm_block',
+        block_id: 'confirm_content_block',
         label: {
           type: 'plain_text',
           text: '⚠️ 발송 시 주의사항',
         },
         element: {
           type: 'checkboxes',
-          action_id: 'confirm_check',
+          action_id: 'confirm_content_check',
           options: [
             {
               text: {
@@ -88,6 +83,20 @@ function buildSmsModal({ incidentId, type }) {
               },
               value: 'confirmed_content',
             },
+          ],
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'confirm_irreversible_block',
+        label: {
+          type: 'plain_text',
+          text: '⚠️ 최종 확인',
+        },
+        element: {
+          type: 'checkboxes',
+          action_id: 'confirm_irreversible_check',
+          options: [
             {
               text: {
                 type: 'mrkdwn',
