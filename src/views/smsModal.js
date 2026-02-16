@@ -79,7 +79,7 @@ function buildSmsModal({ incidentId, type }) {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*문자 내용을 다시 한 번 확인했습니다.*',
+                text: '*문자 내용(오탈자, 링크 등)을 다시 한 번 확인했습니다.*',
               },
               value: 'confirmed_content',
             },
