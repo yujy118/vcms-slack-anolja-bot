@@ -86,12 +86,14 @@ function buildSmsModal({ incidentId, type }) {
                 type: 'mrkdwn',
                 text: '*메시지 발송 전 내용을 다시 한 번 확인했습니다.*',
               },
-              value: 'confirmed',
+              value: 'confirmed_content',
+            },
+            {
               text: {
                 type: 'mrkdwn',
                 text: '*발송 완료 후에는 수정 및 취소가 불가능한 점을 확인했습니다.*',
               },
-              value: 'confirmed',
+              value: 'confirmed_irreversible',
             },
           ],
         },
