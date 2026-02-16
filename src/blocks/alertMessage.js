@@ -39,14 +39,14 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
         {
           type: 'button',
           text: { type: 'plain_text', text: '문자 발송', emoji: true },
-          style: 'warning',
+          style: 'primary',
           action_id: 'open_sms_modal',
           value: incidentId,
         },
         {
           type: 'button',
           text: { type: 'plain_text', text: '알림 무시', emoji: true },
-          style: 'primary',
+          style: 'default',
           action_id: 'dismiss_alert',
           value: incidentId,
         },
