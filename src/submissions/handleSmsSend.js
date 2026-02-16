@@ -37,10 +37,15 @@ function registerSmsSendHandler(app) {
         ? `이미 <@${completedBy}> 님이 발송을 완료했습니다.`
         : '이미 다른 사용자가 발송을 완료했습니다.';
 
+      // sms_text_block이 동적 block_id일 수 있으므로 찾기
+      const textBlockId = Object.keys(view.state.values).find((key) =>
+        key.startsWith('sms_text_block')
+      );
+
       return ack({
         response_action: 'errors',
         errors: {
-          sms_text_block: errorMsg,
+          [textBlockId || 'sms_text_block']: errorMsg,
         },
       });
     }
@@ -48,11 +53,16 @@ function registerSmsSendHandler(app) {
     // === 3. 모달 닫기 ===
     await ack();
 
-    // === 4. 입력값 추출 ===
+    // === 4. 입력값 추출 (block_id가 동적이므로 찾기) ===
+    const textBlockId = Object.keys(view.state.values).find((key) =>
+      key.startsWith('sms_text_block')
+    );
     const smsText =
-      (view.state.values.sms_text_block?.sms_text_input?.value || '').trim();
-    const selectedTemplate =
-      view.state.values.template_block?.template_select?.selected_option?.text?.text || '직접 입력';
+      (view.state.values[textBlockId]?.sms_text_input?.value || '').trim();
+
+    // template_block은 section accessory라 state.values에 없을 수 있음
+    const templateBlockValues = view.state.values.template_block;
+    const selectedTemplate = templateBlockValues?.template_select?.selected_option?.text?.text || '직접 입력';
 
     try {
       // === 5. Retool에서 대상 추출 ===

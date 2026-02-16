@@ -2,6 +2,9 @@ const templates = require('../templates');
 
 /**
  * 템플릿 드롭다운 변경 시 모달 문구 자동 업데이트
+ *
+ * Slack 제약: initial_value는 최초 렌더링에만 적용됨.
+ * 해결: block_id를 매번 변경해서 Slack이 새 블록으로 인식하게 함.
  */
 function registerTemplateChangeAction(app) {
   app.action('template_select', async ({ ack, body, client }) => {
@@ -11,9 +14,13 @@ function registerTemplateChangeAction(app) {
     const isCustom = selectedValue === 'custom';
     const newText = templates[selectedValue];
 
+    // block_id를 매번 고유하게 변경 (Slack이 새 블록으로 인식)
+    const uniqueBlockId = `sms_text_block_${Date.now()}`;
+
     const currentView = body.view;
     const updatedBlocks = currentView.blocks.map((block) => {
-      if (block.block_id === 'sms_text_block') {
+      // sms_text_block으로 시작하는 block_id 찾기
+      if (block.block_id && block.block_id.startsWith('sms_text_block')) {
         const element = {
           type: 'plain_text_input',
           action_id: 'sms_text_input',
@@ -24,7 +31,7 @@ function registerTemplateChangeAction(app) {
           },
         };
 
-        // 직접입력이면 initial_value 아예 없음 (빈 입력창)
+        // 직접입력이면 initial_value 없음 (완전 빈창)
         // 템플릿이면 문구 채움
         if (!isCustom && newText) {
           element.initial_value = newText;
@@ -32,7 +39,7 @@ function registerTemplateChangeAction(app) {
 
         return {
           type: 'input',
-          block_id: 'sms_text_block',
+          block_id: uniqueBlockId,
           label: block.label,
           element,
         };
