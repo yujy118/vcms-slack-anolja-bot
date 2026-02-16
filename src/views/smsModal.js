@@ -69,10 +69,11 @@ function buildSmsModal({ incidentId, type }) {
       },
       // 구분선
       { type: 'divider' },
-      // 책임 확인 체크박스
+      // 책임 확인 체크박스 (optional → 커스텀 한글 에러 메시지 사용)
       {
         type: 'input',
         block_id: 'confirm_block',
+        optional: true,
         label: {
           type: 'plain_text',
           text: '⚠️ 발송 책임 확인',
