@@ -5,7 +5,7 @@ const templates = require('../templates');
  * @param {{ incidentId: string, type: 'alert' | 'recovery' }} options
  */
 function buildSmsModal({ incidentId, type }) {
-  const defaultTemplate = type === 'recovery' ? 'resolved' : 'urgent';
+  const defaultTemplate = type === 'recovery' ? 'urgent' : 'urgent';
   const defaultText = templates[defaultTemplate];
   const titleText = type === 'recovery' ? '해제 문자 발송' : '야놀자 403 문자 발송';
 
@@ -26,7 +26,7 @@ function buildSmsModal({ incidentId, type }) {
       text: '취소',
     },
     blocks: [
-      // 템플릿 드롭다운 (dispatch_action으로 변경 감지)
+      // 템플릿 드롭다운
       {
         type: 'section',
         block_id: 'template_block',

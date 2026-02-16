@@ -8,26 +8,33 @@ function registerTemplateChangeAction(app) {
     await ack();
 
     const selectedValue = body.actions[0].selected_option.value;
-    const newText = templates[selectedValue]; // '' for custom
+    const isCustom = selectedValue === 'custom';
+    const newText = templates[selectedValue];
 
     const currentView = body.view;
     const updatedBlocks = currentView.blocks.map((block) => {
       if (block.block_id === 'sms_text_block') {
+        const element = {
+          type: 'plain_text_input',
+          action_id: 'sms_text_input',
+          multiline: true,
+          placeholder: {
+            type: 'plain_text',
+            text: '발송할 문자 내용을 입력하세요...',
+          },
+        };
+
+        // 직접입력이면 initial_value 아예 없음 (빈 입력창)
+        // 템플릿이면 문구 채움
+        if (!isCustom && newText) {
+          element.initial_value = newText;
+        }
+
         return {
           type: 'input',
           block_id: 'sms_text_block',
           label: block.label,
-          element: {
-            type: 'plain_text_input',
-            action_id: 'sms_text_input',
-            multiline: true,
-            // 항상 initial_value 설정 (직접입력은 공백 1개로 초기화)
-            initial_value: newText || ' ',
-            placeholder: {
-              type: 'plain_text',
-              text: '발송할 문자 내용을 입력하세요...',
-            },
-          },
+          element,
         };
       }
       return block;
