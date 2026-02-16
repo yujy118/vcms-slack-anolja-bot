@@ -1,8 +1,8 @@
 # 🚨 안놀자 봇 (vcms-slack-anolja-bot)
 
-야놀자 403 장애를 **자동 감지**하고, Slack으로 알림을 보낸 뒤 **버튼 한 번으로 SMS 발송**까지 처리하는 봇입니다.
+야놀자 403 장애를 **자동 감지**하고, Slack 알림과 **원클릭 SMS 발송**으로 장애 대응을 자동화하는 봇입니다.
 
-> PM이 직접 커맨드를 치는 게 아니라, 봇이 먼저 장애를 감지해서 알려줍니다.
+> 사람이 먼저 확인하는 게 아니라, 봇이 먼저 장애를 감지해서 알려줍니다.
 
 ---
 
@@ -11,35 +11,121 @@
 ```
 Retool 스케줄 쿼리 (주기적 403 체크)
         │
-        │  에러 업장 20개 이상 감지
+        │  에러 업장 ≥ 20개
         ▼
-Slack 자동 알림 (장애 현황 + 📱 문자 발송 버튼)
+Slack 채널 알림 (장애 현황 + 📱 문자 발송 버튼)
         │
-        │  PM이 버튼 클릭
+        │  PM 버튼 클릭 → SMS 발송 → 버튼 비활성화
+        │
+        │  에러 업장의 90% 정상 복구
         ▼
-Solapi SMS 일괄 발송 → Slack 결과 회신
+Slack 스레드 알림 (해제 안내 + 📱 해제 문자 발송 버튼)
+        │
+        │  PM 버튼 클릭 → 해제 SMS 발송 → 버튼 비활성화
+        ▼
+      [정상]
 ```
 
 ---
 
-## 동작 방식
+## 상태 머신
 
-### 1단계: 자동 감지
-- Retool 스케줄 쿼리가 **1~15분 주기**로 야놀자 403 에러를 조회
-- 에러 업장 수가 **20개 이상**이면 장애로 판단
+```
+                    403 업장 ≥ 20개
+ ┌──────┐  ─────────────────────────────▶  ┌───────────┐
+ │      │                                   │           │
+ │ 정상  │                                   │ 장애 발생  │
+ │      │  ◀─────────────────────────────  │           │
+ └──────┘   에러 업장 90% 정상 복구          └───────────┘
+                + 쿨다운 경과                   │
+                                               │ 장애 지속 중
+                                               │ → 재감지되어도
+                                               │   알림 안 감 (1회만)
+                                               ▼
+```
 
-### 2단계: Slack 자동 알림
-- 봇이 지정 채널에 장애 현황 메시지를 자동 발송
-- 메시지 안에 `📱 문자 발송하기` / `❌ 무시` 버튼 포함
+### 상태별 동작
 
-### 3단계: SMS 발송 (버튼 클릭)
-- PM이 `문자 발송하기` 클릭 → Retool에서 대상 번호 추출 + 중복 제거 + 정제
-- Solapi API로 SMS 일괄 발송
-- 결과 리포트를 Slack에 회신
+| 상태 | 조건 | Slack 동작 | SMS |
+|------|------|-----------|-----|
+| **정상 → 장애** | 403 업장 ≥ 20개 | **채널**에 알림 + 발송 버튼 | PM 선택 시 1회 |
+| **장애 지속** | 임계치 이상 유지 | 추가 알림 없음 | 발송 불가 (버튼 비활성화) |
+| **장애 → 해제** | 에러 업장 90% 복구 | 원래 알림의 **스레드**에 해제 알림 + 발송 버튼 | PM 선택 시 1회 |
 
-### 중복 알림 방지
-- 한번 알림이 발생하면 **해제 전까지 같은 장애에 대해 재알림 없음**
-- 에러 업장 수가 임계치 아래로 떨어지면 자동 해제 (또는 수동 해제)
+### 핵심 규칙
+
+- **장애 발생 문자 1회 + 해제 문자 1회** — 하나의 장애 이벤트에서 최대 2회 발송
+- **버튼 1회용** — 발송하기 클릭 즉시 버튼 비활성화, 재발송 불가
+- **해제 알림은 스레드** — 채널을 어지럽히지 않고, 원래 장애 알림에 이어서 표시
+- **해제 문자는 선택적** — PM이 필요하다고 판단할 때만 발송
+
+---
+
+## 장애 감지 스펙
+
+### 감지 조건
+- **데이터 소스**: Retool Scheduled Query (기존 야놀자 403 조회 쿼리 활용)
+- **체크 주기**: 1~15분 (부하에 따라 조절)
+- **임계치**: 403 에러 업장 수 ≥ **20개**
+- **알림 제한**: 동일 장애 이벤트 내 **1회만** 알림
+
+### 해제 조건
+- **대상**: 장애 발생 시점에 에러가 발생했던 업장들을 추적
+- **기준**: 해당 업장 중 **90% 이상**이 동일 에러 미발생 시 해제
+- **예시**: 23개 업장 403 발생 → 21개(91%) 정상 복구 → 해제
+
+### 플래핑 방지
+- 해제 후 일정 쿨다운 기간 동안 재알림 억제
+- 쿨다운 중 다시 임계치 초과해도 즉시 알림하지 않음
+
+---
+
+## Slack 메시지 예시
+
+### 1. 장애 감지 알림 (채널)
+
+```
+🚨 야놀자 403 장애 감지
+
+감지 시간: 2026-02-16 09:30:00
+에러 업장: 23개 (임계치: 20개)
+
+📋 주요 업장:
+  홍길동호텔, 제주리조트, 서울스테이 ...외 20건
+
+📝 발송 문구:
+"야놀자 403 발생으로 인해 점검 중입니다.
+ 잠시 후 다시 시도해주세요."
+
+[ 📱 문자 발송하기 ]  [ ❌ 무시 ]
+```
+
+### 2. 발송 완료 (버튼 클릭 후 메시지 업데이트)
+
+```
+✅ 문자 발송 완료!
+성공: 20건 / 실패: 0건
+발송 시간: 2026-02-16 09:33:21
+발송자: @PM이름
+
+(📱 문자 발송하기 — 발송 완료됨)
+```
+
+### 3. 장애 해제 알림 (스레드)
+
+```
+✅ 야놀자 403 장애 해제
+
+해제 시간: 2026-02-16 11:45:00
+복구 업장: 21/23개 (91%)
+장애 지속 시간: 2시간 15분
+
+📝 해제 문구:
+"야놀자 403 장애가 해제되었습니다.
+ 이용에 불편을 드려 죄송합니다."
+
+[ 📱 해제 문자 발송 ]  [ ❌ 발송 안함 ]
+```
 
 ---
 
@@ -52,96 +138,34 @@ Solapi SMS 일괄 발송 → Slack 결과 회신
 └────────┬─────────┘
          │
          │  에러 업장 ≥ 20개?
-         │  YES ──────────────────────┐
-         │                            ▼
-         │                   ┌──────────────────┐
-         │                   │  Slack Webhook    │
-         │                   │  자동 알림 발송    │
-         │                   └────────┬─────────┘
-         │                            │
-         │                            ▼
-         │                   ┌──────────────────┐
-         │                   │  Slack Block Kit  │
-         │                   │                   │
-         │                   │  🚨 야놀자 403    │
-         │                   │  감지: 23개 업장   │
-         │                   │                   │
-         │                   │  [📱 문자 발송]    │
-         │                   │  [❌ 무시]         │
-         │                   └────────┬─────────┘
-         │                            │
-         │                     PM 버튼 클릭
-         │                            │
-         │                            ▼
-         │                   ┌──────────────────┐
-         │                   │  Retool Workflow  │
-         │                   │  대상 추출        │
-         │                   │  중복 제거        │
-         │                   │  번호 정제        │
-         │                   └────────┬─────────┘
-         │                            │
-         │                            ▼
-         │                   ┌──────────────────┐
-         │                   │  Solapi API      │
-         │                   │  SMS 일괄 발송    │
-         │                   └────────┬─────────┘
-         │                            │
-         │                            ▼
-         │                   ┌──────────────────┐
-         │                   │  Slack 결과 회신  │
-         │                   │  성공/실패 리포트  │
-         │                   └──────────────────┘
-```
+         ▼
+┌──────────────────┐
+│  Slack 채널 알림  │  장애 현황 + 발송 버튼
+│  (Block Kit)     │
+└────────┬─────────┘
+         │ PM 버튼 클릭
+         ▼
+┌──────────────────┐
+│  Retool Workflow │  대상 추출 + 중복 제거 + 번호 정제
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Solapi API      │  SMS 일괄 발송
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Slack 메시지    │  발송 결과 + 버튼 비활성화
+│  업데이트        │
+└──────────────────┘
 
----
+         ... 에러 업장 90% 복구 ...
 
-## Slack 메시지 예시
-
-### 자동 알림 (봇이 먼저 보내는 메시지)
-```
-🚨 야놀자 403 장애 감지
-
-감지 시간: 2026-02-16 09:30:00
-에러 업장: 23개
-임계치: 20개
-
-📋 주요 업장:
-  홍길동호텔 (403), 제주리조트 (403), 서울스테이 (403) ...외 20건
-
-📝 기본 발송 문구:
-"야놀자 403 발생으로 인해 점검 중입니다.
- 잠시 후 다시 시도해주세요."
-
-[ 📱 문자 발송하기 ]  [ ❌ 무시 ]
-```
-
-### 발송 확인 (버튼 클릭 후)
-```
-🔄 대상 추출 중...
-
-✅ 추출 완료
-├ 총 대상: 23건
-├ 중복 제거: 3건
-└ 최종 발송: 20건
-
-발송을 진행할까요?
-
-[ ✅ 발송 확인 ]  [ ❌ 취소 ]
-```
-
-### 발송 결과
-```
-✅ 문자 발송 완료!
-성공: 20건 / 실패: 0건
-발송 시간: 2026-02-16 09:33:21
-```
-
-### 장애 해제
-```
-✅ 야놀자 403 장애 해제
-에러 업장: 3개 (임계치 20개 미만)
-해제 시간: 2026-02-16 10:15:00
-알림 재활성화됨
+┌──────────────────┐
+│  Slack 스레드    │  해제 알림 + 해제 문자 발송 버튼
+│  알림            │
+└──────────────────┘
 ```
 
 ---
@@ -150,11 +174,11 @@ Solapi SMS 일괄 발송 → Slack 결과 회신
 
 | 구분 | 기술 | 역할 |
 |------|------|------|
-| 장애 감지 | **Retool Scheduled Query** | 주기적 403 에러 조회, 임계치 판단 |
-| 봇 프레임워크 | **Slack Bolt (Node.js)** | Interactive Message 처리, 버튼 콜백 |
+| 장애 감지 | **Retool Scheduled Query** | 주기적 403 조회, 임계치 판단, 업장 추적 |
+| 봇 프레임워크 | **Slack Bolt (Node.js)** | Interactive Message, 버튼 콜백 처리 |
 | 대상 추출 | **Retool Workflow** | DB 쿼리, 중복 제거, 번호 정규식 정제 |
 | 문자 발송 | **Solapi** (`solapi-node`) | SMS 일괄 발송 API |
-| 메시지 UI | **Slack Block Kit** | 장애 알림, 발송 버튼, 결과 리포트 |
+| 메시지 UI | **Slack Block Kit** | 알림, 버튼, 결과 리포트 |
 
 ---
 
@@ -165,19 +189,20 @@ vcms-slack-anolja-bot/
 ├── src/
 │   ├── app.js                  # Slack Bolt 앱 엔트리포인트
 │   ├── monitor/
-│   │   └── alertState.js       # 장애 상태 관리 (중복 알림 방지)
+│   │   ├── alertState.js       # 장애 상태 관리 (감지/해제/쿨다운)
+│   │   └── shopTracker.js      # 에러 업장 추적 (해제 판단용)
 │   ├── actions/
-│   │   ├── sendSms.js          # [문자 발송하기] 버튼 핸들러
-│   │   ├── confirmSend.js      # [발송 확인] 버튼 핸들러
+│   │   ├── sendSms.js          # [문자 발송하기] 버튼 → SMS 발송 + 비활성화
+│   │   ├── sendRecoverySms.js  # [해제 문자 발송] 버튼 → SMS 발송 + 비활성화
 │   │   ├── dismiss.js          # [무시] 버튼 핸들러
-│   │   └── cancel.js           # [취소] 버튼 핸들러
+│   │   └── skipRecovery.js     # [발송 안함] 버튼 핸들러
 │   ├── services/
 │   │   ├── retool.js           # Retool Workflow API 호출
 │   │   ├── solapi.js           # Solapi SMS 발송
 │   │   └── phoneParser.js      # 번호 정규식 정제 유틸
 │   └── blocks/
 │       ├── alertMessage.js     # 장애 감지 알림 Block Kit
-│       ├── confirmMessage.js   # 발송 확인 Block Kit
+│       ├── recoveryMessage.js  # 장애 해제 알림 Block Kit (스레드)
 │       └── resultMessage.js    # 발송 결과 Block Kit
 ├── .env.example
 ├── package.json
@@ -201,13 +226,15 @@ RETOOL_WORKFLOW_URL=https://api.retool.com/v1/workflows/xxx/startTrigger
 RETOOL_API_KEY=xxxx
 
 # Solapi
-SOLAPI_API_KEY=xxxx                    # 솔라피 API Key
-SOLAPI_API_SECRET=xxxx                 # 솔라피 API Secret
+SOLAPI_API_KEY=xxxx
+SOLAPI_API_SECRET=xxxx
 SOLAPI_SENDER=02-xxxx-xxxx             # 발신번호 (사전 등록 필수)
 
 # 모니터링 설정
-ALERT_THRESHOLD=20                     # 알림 임계치 (에러 업장 수)
+ALERT_THRESHOLD=20                     # 장애 감지 임계치 (에러 업장 수)
+RECOVERY_RATE=90                       # 해제 기준 (에러 업장 복구 비율 %)
 CHECK_INTERVAL_MIN=5                   # 체크 주기 (분)
+COOLDOWN_MIN=30                        # 해제 후 쿨다운 (분)
 ```
 
 ---
@@ -215,18 +242,10 @@ CHECK_INTERVAL_MIN=5                   # 체크 주기 (분)
 ## 빠른 시작
 
 ```bash
-# 1. 클론
 git clone https://github.com/yujy118/vcms-slack-anolja-bot.git
 cd vcms-slack-anolja-bot
-
-# 2. 의존성 설치
 npm install
-
-# 3. 환경 변수 설정
-cp .env.example .env
-# .env 파일에 토큰/키 입력
-
-# 4. 실행
+cp .env.example .env   # 토큰/키 입력
 npm start
 ```
 
@@ -236,64 +255,46 @@ npm start
 
 ### 1. Slack App (안놀자 봇)
 
-1. [api.slack.com/apps](https://api.slack.com/apps) → 안놀자 봇 앱 선택
-2. **Interactivity & Shortcuts** → ON
-   - Request URL: `https://<서버주소>/slack/events`
+1. [api.slack.com/apps](https://api.slack.com/apps) → 안놀자 봇 선택
+2. **Interactivity & Shortcuts** → ON → Request URL 세팅
 3. **OAuth & Permissions** → Bot Token Scopes:
-   - `chat:write` — 메시지 발송
-   - `chat:write.public` — 퍼블릭 채널 메시지
-4. **Install to Workspace** → 권한 승인
+   - `chat:write`, `chat:write.public`
+4. **Install to Workspace**
 
 ### 2. Retool
 
-**Scheduled Query (장애 감지용)**
-1. 기존 야놀자 403 조회 쿼리를 스케줄로 전환
-2. 주기: 1~15분
-3. 결과 업장 수 ≥ 20이면 → Slack Webhook 호출
+**Scheduled Query (장애 감지)**
+- 기존 야놀자 403 조회 쿼리를 스케줄로 전환
+- 에러 업장 ≥ 20개 → Slack Webhook 호출
+- 해제 판단: 에러 업장의 90% 정상 복구 추적
 
-**Workflow (대상 추출용)**
-1. Retool → **Workflows** → 새 Workflow 생성
-2. **Webhook Trigger** → URL 복사 → `.env`에 세팅
-3. 로직: DB 쿼리 → 중복 제거(`DISTINCT`) → 번호 정규식 정제
-4. Response: `{ phones: [{ number, name }], total, duplicateRemoved }`
+**Workflow (대상 추출)**
+- Webhook Trigger → 대상 추출 + 중복 제거 + 번호 정제
+- Response: `{ phones: [{ number, name }], total, duplicateRemoved }`
 
 ### 3. Solapi
 
-1. [solapi.com](https://solapi.com) 가입 & 본인인증
-2. **발신번호 등록** (사전등록제 필수)
-3. **API Key 발급**: 마이페이지 → API Key/Secret 복사 → `.env`에 세팅
-4. SDK: `npm install solapi`
-5. 개발자 문서: [developers.solapi.dev](https://developers.solapi.dev/intro)
-
-```javascript
-// Solapi 발송 예시
-const { SolapiMessageService } = require('solapi');
-const messageService = new SolapiMessageService(API_KEY, API_SECRET);
-
-// 대량 발송
-await messageService.send(
-  phones.map(p => ({
-    to: p.number,
-    from: SOLAPI_SENDER,
-    text: '야놀자 403 발생으로 인해 점검 중입니다.'
-  }))
-);
-```
+1. [solapi.com](https://solapi.com) → 가입, 발신번호 등록
+2. API Key/Secret 발급 → `.env`에 세팅
+3. SDK: `npm install solapi`
+4. 문서: [developers.solapi.dev](https://developers.solapi.dev/intro)
 
 ---
 
 ## 진행 상황
 
-- [x] 컨셉 확정 (자동 감지 → 알림 → 버튼 발송)
+- [x] 컨셉 확정
 - [x] GitHub 레포 생성
 - [x] README 작성
 - [ ] Slack App 설정 (안놀자 봇)
-- [ ] Retool Scheduled Query (403 감지)
+- [ ] Retool Scheduled Query (403 감지 + 해제 판단)
 - [ ] Retool Workflow (대상 추출 API)
 - [ ] Slack Bolt 앱 세팅 (Node.js)
-- [ ] 장애 상태 관리 (중복 알림 방지)
+- [ ] 장애 상태 관리 (감지/해제/쿨다운)
+- [ ] 에러 업장 추적 (해제 90% 복구 판단)
 - [ ] Solapi SMS 연동
-- [ ] Interactive Message (발송/무시/확인/취소)
+- [ ] Interactive Message (발송/무시 + 버튼 비활성화)
+- [ ] 해제 알림 스레드 + 해제 문자 발송
 - [ ] 에러 핸들링
 - [ ] 배포
 
