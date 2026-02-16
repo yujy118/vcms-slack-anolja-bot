@@ -22,14 +22,14 @@ const incidentId = `test-${Date.now()}`;
     incidentId,
     shopCount: 23,
     threshold: 20,
-    shopNames: '홍길동호텔, 제주리조트, 서울스테이 ...외 20건',
+    shopNames: '[테스트] 의정부 케일라, 호텔다시청평 ...외 20건',
     detectedAt: formatDateTime(),
   });
 
   const result = await client.chat.postMessage({
     channel,
     blocks,
-    text: '야놀자 403 장애 감지 테스트',
+    text: '[테스트] 야놀자 403 장애 감지',
   });
 
   // 3. 메타데이터 저장 (결과 메시지 업데이트용)
