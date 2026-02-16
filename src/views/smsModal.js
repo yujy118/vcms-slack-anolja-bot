@@ -84,7 +84,12 @@ function buildSmsModal({ incidentId, type }) {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*메시지 발송 전 반드시 내용을 다시 한 번 확인해 주세요. 발송 완료 후에는 수정 및 취소가 불가합니다. 오탈자, 수신자 정보, 링크 및 금액 등을 최종 점검하신 뒤 신중하게 발송해 주시기 바랍니다.*',
+                text: '*메시지 발송 전 내용을 다시 한 번 확인했습니다.*',
+              },
+              value: 'confirmed',
+              text: {
+                type: 'mrkdwn',
+                text: '*발송 완료 후에는 수정 및 취소가 불가능한 점을 확인했습니다.*',
               },
               value: 'confirmed',
             },
