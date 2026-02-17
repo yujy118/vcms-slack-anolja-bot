@@ -27,10 +27,11 @@ async function fetchErrorCheck() {
       'Content-Type': 'application/json',
       'X-Workflow-Api-Key': apiKey,
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ wait_for_result: true }),
   });
 
   const raw = await response.json();
+  console.log('체크 응답:', JSON.stringify(raw).slice(0, 500));
 
   if (!response.ok) {
     throw new Error(`Retool Check \ud638\ucd9c \uc2e4\ud328: ${response.status}`);
@@ -43,7 +44,7 @@ async function fetchErrorCheck() {
     data = JSON.parse(data);
   }
 
-  return data; // { shopCount, shopNames, shouldAlert }
+  return data;
 }
 
 /**
@@ -60,10 +61,8 @@ function startErrorChecker(client) {
 
   console.log(`\ud83d\udd0d \uc790\ub3d9 \uac10\uc9c0 \uc2dc\uc791 (${CHECK_INTERVAL / 1000}\ucd08 \uac04\uaca9, \uc784\uacc4\uce58: ${threshold}\uac1c)`);
 
-  // 시작 시 즉시 1회 체크
   runCheck(client, channelId, threshold);
 
-  // 이후 주기적 체크
   setInterval(() => {
     runCheck(client, channelId, threshold);
   }, CHECK_INTERVAL);
@@ -91,16 +90,13 @@ async function runCheck(client, channelId, threshold) {
       (currentState.status === alertState.AlertStatus.ALERTING ||
        currentState.status === alertState.AlertStatus.COMPLETED);
 
-    // === 장애 감지: 임계치 초과 && 현재 알림 중 아님 ===
     if (shopCount >= threshold && !isCurrentlyAlerting) {
       console.log(`\ud83d\udea8 \uc784\uacc4\uce58 \ucd08\uacfc! \uc54c\ub9bc \ubc1c\uc1a1 (${shopCount} >= ${threshold})`);
 
       const incidentId = `auto-${Date.now()}`;
 
-      // 상태 설정
       alertState.setState(`${incidentId}_alert`, alertState.AlertStatus.ALERTING);
 
-      // 알림 메시지 발송
       const blocks = buildAlertMessage({
         incidentId,
         shopCount,
@@ -115,10 +111,8 @@ async function runCheck(client, channelId, threshold) {
         text: `\ud83d\udea8 \uc57c\ub188\uc790 403 \uc5f0\ub3d9 \uc9c0\uc5f0 \ubc1c\uc0dd (${shopCount}\uac1c \uc5c5\uc7a5)`,
       });
 
-      // 메타데이터 저장
       alertState.setMeta(incidentId, { messageTs: result.ts });
 
-      // 자동 감지 키 업데이트 (복구 감지용)
       alertState.setState(alertKey, alertState.AlertStatus.ALERTING);
       alertState.setMeta(INCIDENT_KEY, {
         lastIncidentId: incidentId,
@@ -129,7 +123,6 @@ async function runCheck(client, channelId, threshold) {
       lastShopCount = shopCount;
     }
 
-    // === 복구 감지: 임계치 이하로 떨어짐 && 현재 알림 중 ===
     else if (shopCount < threshold && isCurrentlyAlerting) {
       const recoveryRate = lastShopCount > 0
         ? Math.round((1 - shopCount / lastShopCount) * 100)
@@ -140,11 +133,9 @@ async function runCheck(client, channelId, threshold) {
       const meta = alertState.getMeta(INCIDENT_KEY);
       const incidentId = meta.lastIncidentId || `auto-recovery-${Date.now()}`;
 
-      // 복구 상태로 변경
       alertState.setState(alertKey, alertState.AlertStatus.NORMAL);
       alertState.setState(`${incidentId}_recovery`, alertState.AlertStatus.ALERTING);
 
-      // 복구 메시지 발송
       const blocks = buildRecoveryMessage({
         incidentId,
         shopCount,
@@ -167,7 +158,6 @@ async function runCheck(client, channelId, threshold) {
       lastShopCount = shopCount;
     }
 
-    // === 상태 유지 (로그만) ===
     else {
       lastShopCount = shopCount;
     }
