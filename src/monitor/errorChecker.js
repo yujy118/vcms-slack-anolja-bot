@@ -14,7 +14,7 @@ let isRunning = false;
  */
 async function fetchErrorCheck() {
   const url = process.env.RETOOL_CHECK_WORKFLOW_URL;
-  const apiKey = process.env.RETOOL_API_KEY;
+  const apiKey = process.env.RETOOL_CHECK_API_KEY || process.env.RETOOL_API_KEY;
 
   if (!url) {
     console.log('\u26a0\ufe0f RETOOL_CHECK_WORKFLOW_URL \ubbf8\uc124\uc815 - \uc790\ub3d9 \uac10\uc9c0 \ube44\ud65c\uc131');
