@@ -149,10 +149,35 @@ Slack Block Kit의 단일 checkboxes는 "모든 옵션 필수"를 지원 안 해
 
 ---
 
+## 서버 운영
+
+GCP Compute Engine (e2-micro, Always Free) + pm2로 24시간 상시 운영.
+
+### 서버 접속
+GCP Console → Compute Engine → VM 인스턴스 → SSH 버튼
+
+### 주요 명령어 (GCP SSH에서)
+```bash
+pm2 status                  # 봇 상태 확인
+pm2 logs anolja-bot         # 실시간 로그
+pm2 restart anolja-bot      # 재시작
+pm2 stop anolja-bot         # 중지
+```
+
+### 코드 업데이트 (GCP SSH에서)
+```bash
+cd ~/vcms-slack-anolja-bot
+git pull
+pm2 restart anolja-bot
+```
+
+---
+
 ## 아키텍처
 
 ```
 ┌──────────────────────────┐
+│  GCP e2-micro (Always Free)
 │  Slack Bolt (Node.js)    │  Socket Mode (WebSocket 상시 연결)
 │  + pm2 백그라운드 실행     │
 ├──────────────────────────┤
@@ -184,6 +209,7 @@ Slack Block Kit의 단일 checkboxes는 "모든 옵션 필수"를 지원 안 해
 | 문자 발송 | **Solapi** | SMS 일괄 발송 API |
 | 상태 관리 | **In-memory Map** | 장애 상태, 레이스 컨디션 방지 |
 | 메시지 UI | **Slack Block Kit + Modal** | 알림, 템플릿, 체크박스, 결과 |
+| 서버 | **GCP Compute Engine** | e2-micro Always Free (24시간) |
 | 프로세스 관리 | **pm2** | 백그라운드 실행, 자동 재시작 |
 
 ---
@@ -331,7 +357,7 @@ pm2 startup    # 출력된 sudo 명령어 실행
 - [x] 5분 주기 자동 감지 (errorChecker + Retool 체크 WF)
 - [x] 복구 자동 감지
 - [x] pm2 상시 실행 설정
-- [ ] 서버 배포 (24시간 상시 운영)
+- [x] GCP 서버 배포 (24시간 상시 운영)
 - [ ] 프로덕션 전환 (TEST_PHONE 삭제)
 
 ---
