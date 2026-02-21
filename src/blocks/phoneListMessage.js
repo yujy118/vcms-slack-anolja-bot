@@ -1,13 +1,13 @@
 const { formatDateTime } = require('../utils/time');
 
 /**
- * 발송 대상 업장/번호 리스트 Block Kit (스레드 회신용)
+ * 발송 대상 숙박업소/번호 리스트 Block Kit (스레드 회신용)
  * @param {Array<{number: string, name: string}>} phones
  * @param {boolean} testMode
  * @param {string} testPhone
  */
 function buildPhoneListMessage(phones, testMode = false, testPhone = '') {
-  // 업장별로 그룹핑
+  // 숙박업소별로 그룹핑
   const shopMap = new Map();
   phones.forEach((p) => {
     const name = p.name || '알 수 없음';
@@ -34,7 +34,7 @@ function buildPhoneListMessage(phones, testMode = false, testPhone = '') {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `📋 *발송 대상 목록* (${phones.length}건 / ${shopMap.size}개 업장)\n${header}${formatDateTime()}`,
+        text: `📋 *발송 대상 목록* (${phones.length}건 / ${shopMap.size}개 숙박업소)\n${header}${formatDateTime()}`,
       },
     },
     { type: 'divider' },

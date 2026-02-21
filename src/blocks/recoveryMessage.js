@@ -3,7 +3,6 @@
  */
 
 function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt, alertedAt }) {
-  // 정상화 업장 표시: undefined면 '알 수 없음'
   const hasData = recoveryRate !== undefined && recoveryRate !== null
     && shopCount !== undefined && shopCount !== null;
   const displayRecovery = hasData
@@ -28,7 +27,7 @@ function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt,
         },
         {
           type: 'mrkdwn',
-          text: `*정상화 업장:*\n${displayRecovery}`,
+          text: `*정상화 숙박업소:*\n${displayRecovery}`,
         },
       ],
     },

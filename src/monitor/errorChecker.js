@@ -17,7 +17,7 @@ async function fetchErrorCheck() {
   const apiKey = process.env.RETOOL_CHECK_API_KEY || process.env.RETOOL_API_KEY;
 
   if (!baseUrl) {
-    console.log('\u26a0\ufe0f RETOOL_CHECK_WORKFLOW_URL \ubbf8\uc124\uc815 - \uc790\ub3d9 \uac10\uc9c0 \ube44\ud65c\uc131');
+    console.log('⚠️ RETOOL_CHECK_WORKFLOW_URL 미설정 - 자동 감지 비활성');
     return null;
   }
 
@@ -35,10 +35,10 @@ async function fetchErrorCheck() {
   });
 
   const raw = await response.json();
-  console.log('\uccb4\ud06c \uc751\ub2f5:', JSON.stringify(raw).slice(0, 500));
+  console.log('체크 응답:', JSON.stringify(raw).slice(0, 500));
 
   if (!response.ok) {
-    throw new Error(`Retool Check \ud638\ucd9c \uc2e4\ud328: ${response.status}`);
+    throw new Error(`Retool Check 호출 실패: ${response.status}`);
   }
 
   let data = raw;
@@ -59,11 +59,11 @@ function startErrorChecker(client) {
   const threshold = parseInt(process.env.ALERT_THRESHOLD || '20', 10);
 
   if (!process.env.RETOOL_CHECK_WORKFLOW_URL) {
-    console.log('\u26a0\ufe0f RETOOL_CHECK_WORKFLOW_URL \ubbf8\uc124\uc815 - \uc790\ub3d9 \uac10\uc9c0 \uc2dc\uc791 \uc548 \ud568');
+    console.log('⚠️ RETOOL_CHECK_WORKFLOW_URL 미설정 - 자동 감지 시작 안 함');
     return;
   }
 
-  console.log(`\ud83d\udd0d \uc790\ub3d9 \uac10\uc9c0 \uc2dc\uc791 (${CHECK_INTERVAL / 1000}\ucd08 \uac04\uaca9, \uc784\uacc4\uce58: ${threshold}\uac1c)`);
+  console.log(`🔍 자동 감지 시작 (${CHECK_INTERVAL / 1000}초 간격, 임계치: ${threshold}개)`);
 
   runCheck(client, channelId, threshold);
 
@@ -74,7 +74,7 @@ function startErrorChecker(client) {
 
 async function runCheck(client, channelId, threshold) {
   if (isRunning) {
-    console.log('\u23f3 \uc774\uc804 \uccb4\ud06c \uc544\uc9c1 \uc2e4\ud589 \uc911 - \uc2a4\ud0b5');
+    console.log('⏳ 이전 체크 아직 실행 중 - 스킵');
     return;
   }
 
@@ -86,7 +86,7 @@ async function runCheck(client, channelId, threshold) {
     const { shopCount, shopNames } = data;
     const now = formatDateTime();
 
-    console.log(`[${now}] \uc5d0\ub7ec \uc5c5\uc7a5: ${shopCount}\uac1c (\uc784\uacc4\uce58: ${threshold})`);
+    console.log(`[${now}] 에러 숙박업소: ${shopCount}개 (임계치: ${threshold})`);
 
     const alertKey = `${INCIDENT_KEY}_alert`;
     const currentState = alertState.getState(alertKey);
@@ -95,7 +95,7 @@ async function runCheck(client, channelId, threshold) {
        currentState.status === alertState.AlertStatus.COMPLETED);
 
     if (shopCount >= threshold && !isCurrentlyAlerting) {
-      console.log(`\ud83d\udea8 \uc784\uacc4\uce58 \ucd08\uacfc! \uc54c\ub9bc \ubc1c\uc1a1 (${shopCount} >= ${threshold})`);
+      console.log(`🚨 임계치 초과! 알림 발송 (${shopCount} >= ${threshold})`);
 
       const incidentId = `auto-${Date.now()}`;
 
@@ -105,14 +105,14 @@ async function runCheck(client, channelId, threshold) {
         incidentId,
         shopCount,
         threshold,
-        shopNames: shopNames || `${shopCount}\uac1c \uc5c5\uc7a5`,
+        shopNames: shopNames || `${shopCount}개 숙박업소`,
         detectedAt: now,
       });
 
       const result = await client.chat.postMessage({
         channel: channelId,
         blocks,
-        text: `\ud83d\udea8 \uc57c\ub188\uc790 403 \uc5f0\ub3d9 \uc9c0\uc5f0 \ubc1c\uc0dd (${shopCount}\uac1c \uc5c5\uc7a5)`,
+        text: `🚨 야놀자 403 연동 지연 발생 (${shopCount}개 숙박업소)`,
       });
 
       alertState.setMeta(incidentId, { messageTs: result.ts });
@@ -132,7 +132,7 @@ async function runCheck(client, channelId, threshold) {
         ? Math.round((1 - shopCount / lastShopCount) * 100)
         : 100;
 
-      console.log(`\u2705 \ubcf5\uad6c \uac10\uc9c0! (${shopCount} < ${threshold}, \ud68c\ubcf5\ub960: ${recoveryRate}%)`);
+      console.log(`✅ 복구 감지! (${shopCount} < ${threshold}, 회복률: ${recoveryRate}%)`);
 
       const meta = alertState.getMeta(INCIDENT_KEY);
       const incidentId = meta.lastIncidentId || `auto-recovery-${Date.now()}`;
@@ -145,13 +145,13 @@ async function runCheck(client, channelId, threshold) {
         shopCount,
         recoveryRate,
         resolvedAt: now,
-        alertedAt: meta.alertedAt || '\uc54c \uc218 \uc5c6\uc74c',
+        alertedAt: meta.alertedAt || '알 수 없음',
       });
 
       const result = await client.chat.postMessage({
         channel: channelId,
         blocks,
-        text: `\u2705 \uc57c\ub188\uc790 403 \ubcf5\uad6c \uac10\uc9c0 (\uc794\uc5ec: ${shopCount}\uac1c)`,
+        text: `✅ 야놀자 403 복구 감지 (잔여: ${shopCount}개)`,
       });
 
       alertState.setMeta(incidentId, {
@@ -166,7 +166,7 @@ async function runCheck(client, channelId, threshold) {
       lastShopCount = shopCount;
     }
   } catch (error) {
-    console.error('\uc5d0\ub7ec \uccb4\ud06c \uc2e4\ud328:', error.message);
+    console.error('에러 체크 실패:', error.message);
   } finally {
     isRunning = false;
   }

@@ -5,7 +5,7 @@ const { formatDateTime } = require('../utils/time');
  */
 
 function buildResultMessage({ total, success, failure, userId, template, type }) {
-  const title = type === 'recovery' ? '해제 SMS 발송 완료' : 'SMS 발송 완료';
+  const title = type === 'recovery' ? '해제 문자 발송 완료' : '문자 발송 완료';
   const failureNote = failure > 0 ? ' (상세 내역은 아래 스레드 확인)' : '';
 
   return [
@@ -19,9 +19,9 @@ function buildResultMessage({ total, success, failure, userId, template, type })
           `성공: ${success}건`,
           `실패: ${failure}건${failureNote}`,
           '',
-          `발송 승인자: <@${userId}>`,
+          `발송 담당자: <@${userId}>`,
           `선택 템플릿: ${template}`,
-          `발송일시: ${formatDateTime()}`,
+          `발송 일시: ${formatDateTime()}`,
         ].join('\n'),
       },
     },

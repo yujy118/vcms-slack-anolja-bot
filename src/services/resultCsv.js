@@ -10,7 +10,7 @@ const { formatDateTime } = require('../utils/time');
 function buildResultCsv(phones, solapiResult, smsText) {
   // BOM for Excel 한글 깨짐 방지
   const BOM = '\uFEFF';
-  const header = '번호,업장명,발송상태,발송일시,문자내용';
+  const header = '전화번호,숙박업소 이름,발송 상태,발송 일시,문자 내용';
 
   const rows = phones.map((p) => {
     const status = '발송완료';
@@ -36,14 +36,14 @@ function buildResultCsv(phones, solapiResult, smsText) {
 async function uploadResultCsv(client, channelId, threadTs, phones, solapiResult, smsText) {
   const csv = buildResultCsv(phones, solapiResult, smsText);
   const dateStr = formatDateTime().replace(/[: ]/g, '-');
-  const filename = `sms-발송결과-${dateStr}.csv`;
+  const filename = `문자-발송결과-${dateStr}.csv`;
 
   await client.filesUploadV2({
     channel_id: channelId,
     thread_ts: threadTs,
     filename,
     content: csv,
-    title: `📊 SMS 발송 결과 (${phones.length}건)`,
+    title: `📊 문자 발송 결과 (${phones.length}건)`,
     initial_comment: `📎 발송 대상 ${phones.length}건의 상세 결과입니다.`,
   });
 }

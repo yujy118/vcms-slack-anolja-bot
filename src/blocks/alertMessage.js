@@ -3,8 +3,6 @@
  */
 
 function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detectedAt }) {
-  const displayNames = (!shopNames || shopNames === 'none') ? '없음' : shopNames;
-
   return [
     {
       type: 'header',
@@ -23,16 +21,9 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
         },
         {
           type: 'mrkdwn',
-          text: `*연동 지연 업장:*\n${shopCount}개 (임계치: ${threshold}개)`,
+          text: `*발생 숙박업소:*\n${shopCount}개 (임계치: ${threshold}개)`,
         },
       ],
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `📋 *주요 업장:*\n${displayNames}`,
-      },
     },
     { type: 'divider' },
     {
