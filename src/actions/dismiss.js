@@ -1,4 +1,4 @@
-const { formatDateTime } = require('../utils/time');
+const { buildDismissedMessage } = require('../blocks/dismissedMessage');
 
 function registerDismissAction(app) {
   app.action('dismiss_alert', async ({ ack, body, client }) => {
@@ -8,7 +8,7 @@ function registerDismissAction(app) {
     const channelId = body.channel.id;
     const messageTs = body.message.ts;
 
-    // 1. 원본 메시지에서 버튼만 제거 (장애 정보 유지)
+    // 1. 원본 메시지에서 버튼만 제거
     const updatedBlocks = body.message.blocks.filter(
       (block) => block.type !== 'actions'
     );
@@ -21,19 +21,12 @@ function registerDismissAction(app) {
     });
 
     // 2. 스레드에 로그 박제
+    const { blocks, text } = buildDismissedMessage({ userId, type: 'alert' });
     await client.chat.postMessage({
       channel: channelId,
       thread_ts: messageTs,
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `❌ *연동 지연 문자 발송 안함*\n처리자: <@${userId}>\n처리일시: ${formatDateTime()}`,
-          },
-        },
-      ],
-      text: `연동 지연 문자 발송 안함 - <@${userId}>`,
+      blocks,
+      text,
     });
   });
 }

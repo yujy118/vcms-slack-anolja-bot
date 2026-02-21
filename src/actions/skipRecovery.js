@@ -1,4 +1,4 @@
-const { formatDateTime } = require('../utils/time');
+const { buildDismissedMessage } = require('../blocks/dismissedMessage');
 
 function registerSkipRecoveryAction(app) {
   app.action('skip_recovery_sms', async ({ ack, body, client }) => {
@@ -17,23 +17,16 @@ function registerSkipRecoveryAction(app) {
       channel: channelId,
       ts: messageTs,
       blocks: updatedBlocks,
-      text: '야놀자 403 장애 해제 (문자 발송 안함)',
+      text: '해제 문자 발송 안함',
     });
 
     // 2. 스레드에 로그 박제
+    const { blocks, text } = buildDismissedMessage({ userId, type: 'recovery' });
     await client.chat.postMessage({
       channel: channelId,
       thread_ts: messageTs,
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `✅ *해제 문자 발송 안함*\n처리자: <@${userId}>\n처리일시: ${formatDateTime()}`,
-          },
-        },
-      ],
-      text: `해제 문자 발송 안함 - <@${userId}>`,
+      blocks,
+      text,
     });
   });
 }
