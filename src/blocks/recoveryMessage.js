@@ -3,7 +3,13 @@
  */
 
 function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt, alertedAt }) {
-  const displayRate = (recoveryRate !== undefined && recoveryRate !== null) ? `${recoveryRate}%` : '확인 중';
+  // 정상화 업장 표시: undefined면 '알 수 없음'
+  const hasData = recoveryRate !== undefined && recoveryRate !== null
+    && shopCount !== undefined && shopCount !== null;
+  const displayRecovery = hasData
+    ? `${shopCount}/${shopCount}개 (${recoveryRate}%)`
+    : '알 수 없음';
+
   const displayDuration = calculateDuration(alertedAt, resolvedAt);
 
   return [
@@ -24,7 +30,7 @@ function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt,
         },
         {
           type: 'mrkdwn',
-          text: `*잔여 에러 업장:*\n${shopCount !== undefined ? shopCount : 0}개`,
+          text: `*정상화 업장:*\n${displayRecovery}`,
         },
       ],
     },
