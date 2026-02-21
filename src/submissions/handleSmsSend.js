@@ -98,7 +98,7 @@ function registerSmsSendHandler(app) {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: `⏳ SMS 발송 중... (by <@${userId}> | ${formatDateTime()})`,
+                  text: `⏳ 문자 발송 중... (by <@${userId}> | ${formatDateTime()})`,
                 },
               ],
             },
@@ -108,7 +108,7 @@ function registerSmsSendHandler(app) {
           channel: channelId,
           ts: messageTs,
           blocks: updatedBlocks,
-          text: 'SMS 발송 중...',
+          text: '문자 발송 중...',
         });
       } catch (e) {
         console.warn('원본 메시지 버튼 제거 실패 (무시):', e.message);
@@ -148,7 +148,7 @@ function registerSmsSendHandler(app) {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: `✅ SMS 발송 완료 | <@${userId}> | ${formatDateTime()}`,
+                  text: `✅ 문자 발송 완료 | <@${userId}> | ${formatDateTime()}`,
                 },
               ],
             },
@@ -158,7 +158,7 @@ function registerSmsSendHandler(app) {
           channel: channelId,
           ts: messageTs,
           blocks: finalBlocks,
-          text: `SMS 발송 완료 (성공: ${result.success}건)`,
+          text: `문자 발송 완료 (성공: ${result.success}건)`,
         });
       } catch (e) {
         console.warn('원본 메시지 완료 업데이트 실패 (무시):', e.message);
@@ -178,7 +178,7 @@ function registerSmsSendHandler(app) {
         channel: channelId,
         thread_ts: messageTs,
         blocks: resultBlocks,
-        text: `SMS 발송 완료 (성공: ${result.success}건 / 실패: ${result.failure}건)`,
+        text: `문자 발송 완료 (성공: ${result.success}건 / 실패: ${result.failure}건)`,
       });
 
       // === 10. 발송 대상 리스트를 스레드로 회신 ===
@@ -213,7 +213,7 @@ function registerSmsSendHandler(app) {
         });
       }
     } catch (error) {
-      console.error('SMS 발송 에러:', error);
+      console.error('문자 발송 에러:', error);
 
       // 에러 시 상태 롤백
       alertState.setState(stateKey, alertState.AlertStatus.ALERTING);
@@ -221,7 +221,7 @@ function registerSmsSendHandler(app) {
       // 에러 DM
       await client.chat.postMessage({
         channel: userId,
-        text: `⚠️ SMS 발송 중 에러 발생: ${error.message}\n다시 시도해주세요.`,
+        text: `⚠️ 문자 발송 중 에러 발생: ${error.message}\n다시 시도해주세요.`,
       });
     }
   });
