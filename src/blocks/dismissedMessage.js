@@ -1,5 +1,5 @@
 /**
- * 알림 무시됨 Block Kit (원래 메시지를 업데이트)
+ * 연동 지연 문자 발송 안함 Block Kit (원래 메시지를 업데이트)
  */
 
 function buildDismissedMessage({ userId, timestamp }) {
@@ -8,7 +8,7 @@ function buildDismissedMessage({ userId, timestamp }) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `❌ *야놀자 403 장애 알림 무시됨*\n처리자: <@${userId}>\n처리 시간: ${timestamp}`,
+        text: `❌ *연동 지연 문자 발송 안함*\n처리자: <@${userId}>\n처리일시: ${timestamp}`,
       },
     },
   ];
