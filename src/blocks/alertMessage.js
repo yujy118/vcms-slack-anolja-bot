@@ -3,6 +3,8 @@
  */
 
 function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detectedAt }) {
+  const displayNames = (!shopNames || shopNames === 'none') ? '확인 중' : shopNames;
+
   return [
     {
       type: 'header',
@@ -29,7 +31,7 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `📋 *주요 업장:*\n${shopNames}`,
+        text: `📋 *주요 업장:*\n${displayNames}`,
       },
     },
     { type: 'divider' },
@@ -45,8 +47,7 @@ function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detect
         },
         {
           type: 'button',
-          text: { type: 'plain_text', text: '알림 무시', emoji: true },
-          // style: 'default',
+          text: { type: 'plain_text', text: '문자 발송 안함', emoji: true },
           action_id: 'dismiss_alert',
           value: incidentId,
         },
