@@ -3,7 +3,7 @@
  */
 
 function buildAlertMessage({ incidentId, shopCount, threshold, shopNames, detectedAt }) {
-  const displayNames = (!shopNames || shopNames === 'none') ? '확인 중' : shopNames;
+  const displayNames = (!shopNames || shopNames === 'none') ? '없음' : shopNames;
 
   return [
     {
