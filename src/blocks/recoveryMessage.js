@@ -10,8 +10,6 @@ function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt,
     ? `${shopCount}/${shopCount}개 (${recoveryRate}%)`
     : '알 수 없음';
 
-  const displayDuration = calculateDuration(alertedAt, resolvedAt);
-
   return [
     {
       type: 'header',
@@ -34,13 +32,6 @@ function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt,
         },
       ],
     },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*장애 지속 시간:* ${displayDuration}`,
-      },
-    },
     { type: 'divider' },
     {
       type: 'actions',
@@ -61,30 +52,6 @@ function buildRecoveryMessage({ incidentId, shopCount, recoveryRate, resolvedAt,
       ],
     },
   ];
-}
-
-/**
- * 장애 지속 시간 계산
- */
-function calculateDuration(alertedAt, resolvedAt) {
-  if (!alertedAt || alertedAt === '알 수 없음') return '알 수 없음';
-
-  try {
-    const start = new Date(alertedAt.replace(/(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/, '$1T$2'));
-    const end = new Date(resolvedAt.replace(/(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/, '$1T$2'));
-    const diffMs = end - start;
-
-    if (isNaN(diffMs) || diffMs < 0) return '알 수 없음';
-
-    const minutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-
-    if (hours > 0) return `${hours}시간 ${mins}분`;
-    return `${mins}분`;
-  } catch {
-    return '알 수 없음';
-  }
 }
 
 module.exports = { buildRecoveryMessage };
