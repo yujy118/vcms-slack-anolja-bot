@@ -1,0 +1,25 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/vcms-slack-anolja-bot
+            git pull origin main
+            npm install --production
+            pm2 restart anolja-bot
+            pm2 logs anolja-bot --lines 3 --nostream
