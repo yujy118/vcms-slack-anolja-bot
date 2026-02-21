@@ -17,10 +17,10 @@ function registerDismissAction(app) {
       channel: channelId,
       ts: messageTs,
       blocks: updatedBlocks,
-      text: '야놀자 403 장애 알림 (무시됨)',
+      text: '연동 지연 문자 발송 안함',
     });
 
-    // 2. 스레드에 무시 로그 박제
+    // 2. 스레드에 로그 박제
     await client.chat.postMessage({
       channel: channelId,
       thread_ts: messageTs,
@@ -29,11 +29,11 @@ function registerDismissAction(app) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `❌ *알림 무시됨*\n처리자: <@${userId}>\n처리일시: ${formatDateTime()}`,
+            text: `❌ *연동 지연 문자 발송 안함*\n처리자: <@${userId}>\n처리일시: ${formatDateTime()}`,
           },
         },
       ],
-      text: `알림 무시됨 - <@${userId}>`,
+      text: `연동 지연 문자 발송 안함 - <@${userId}>`,
     });
   });
 }
